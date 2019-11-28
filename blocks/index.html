@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Page Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body, html{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+    <script>
+        var canvas = document.getElementById("game");
+        var ctx = canvas.getContext("2d");
+        var ups = (1.0/60.0)*1000;
+        var running = true;
+
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        var lastTime = performance.now();
+        var firstTime = 0;
+        var timePassed = 0;
+        var unprocessedTime = 0;
+
+        var frameTime = 0;
+        var frames = 0;
+        var fps;
+
+        var gameLoop = function(){
+            if(!running)
+                return;
+            
+            firstTime = performance.now();
+            timePassed = firstTime - lastTime;
+            lastTime = firstTime;
+
+            unprocessedTime += timePassed;
+            frameTime += timePassed;
+            
+            if(unprocessedTime > 5000){
+                console.log('skipped');
+                unprocessedTime = ups;
+            }
+
+            while(unprocessedTime >= ups){
+                unprocessedTime -= ups;
+                update();
+
+                if(frameTime >= 1000.0){
+                    frameTime = 0;
+                    fps = frames;
+                    frames = 0;
+                }
+            }
+            
+            render();
+            frames++;
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        var collision = function(){
+            // for(first in entities){
+            //     if(!entities[first].collided){
+            //         for(second in entities){
+            //             if(first != second){
+            //                 var collides = entities[first].collide(entities[second]);
+            //                 console.log(collides);
+            //             }
+            //         }
+            //     }
+            // }
+            
+            for(var i = 0, length = entities.length; i < length; i++){
+                entityA = entities[i];
+                if(!entityA.collided){
+                    for(var j = 0; j < length; j++){
+                        entityB = entities[j];
+                        if(i != j){
+                            var collides = entityA.collide(entityB);
+                            
+                            if(collides){
+                                oldDx = entityA.dx;
+                                oldDy = entityA.dy;
+
+                                entityA.dx = entityB.dx;
+                                entityA.dy = entityB.dy;
+
+                                entityB.dx = oldDx;
+                                entityB.dy = oldDy;
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+        
+        var update = function(){
+            collision();
+            for(e in entities){
+                entities[e].collided = false;
+                entities[e].update();
+            }
+        }
+
+        var render = function(){
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for(e in entities){
+                entities[e].render();
+            }
+        }
+
+        var Cube = function(x, y, width, height){
+            this.x =  x || 50;
+            this.y =  y || 50;
+            this.width = width || 40;
+            this.height = height || 40;
+
+            this.collided = false;
+
+
+            if(Cube.prototype.colorIndex >= this.colorList.length)
+                Cube.prototype.colorIndex = 0;
+
+            this.color = Cube.prototype.colorIndex;
+            Cube.prototype.colorIndex++;
+            
+            this.dx = 5;
+            this.dy = 5;
+
+            this.randomDirection();
+        }
+
+        Cube.prototype.colorIndex = 0;
+
+        Cube.prototype.colorList = ['purple', 'red', 'yellow', 'blue', 'green']
+
+        Cube.prototype.changeColor = function(){
+            if(this.color >= this.colorList.length)
+                this.color = 0;
+            else
+                this.color++;
+        }
+        
+        Cube.prototype.render = function(){
+            ctx.fillStyle = this.colorList[this.color];
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+
+        Cube.prototype.randomDirection = function() {
+            var rand = Math.round(Math.random());
+            this.dx = rand == 1 ? this.dx : -this.dx;
+
+            rand = Math.round(Math.random());
+            this.dy = rand == 1 ? this.dy : -this.dy;
+        }
+
+        Cube.prototype.update = function(){
+            this.update = function(){
+                if(this.x + this.width > canvas.width || this.x < 0){
+                    this.dx = -this.dx;
+                }
+                if(this.y + this.height > canvas.height || this.y < 0){
+                    this.dy = -this.dy;
+                }
+                this.x += this.dx;
+                this.y += this.dy;
+            }
+        }
+        
+        Cube.prototype.collide = function(entity){
+            var fx = this.x - entity.x;
+            fx *= fx;
+            
+            var sx = this.y - entity.y;
+            sx *= sx;
+
+            var distance = Math.sqrt(fx + sx);
+            
+            if(distance > this.width/2 + entity.width/2){
+                return false;
+            }
+
+            entity.collided = true;
+            this.collided = true;
+
+            return true;
+        }
+
+        var entities = [];
+
+        for(var i = 0; i < 1; i+=50){
+            entities.push(new Cube(i));
+        }
+        
+        requestAnimationFrame(gameLoop);
+
+        canvas.addEventListener('mousedown', (event) =>{
+            entities.push(new Cube(event.clientX, event.clientY))
+        })
+    </script>
+</body>
+</html>
